@@ -26,7 +26,7 @@
             padding: 30px;
             border-radius: 15px;
             box-shadow: 0 8px 16px rgba(0,0,0,0.05);
-            max-width: 1300px;
+            max-width: 1350px;
             margin: 0 auto;
             border: 1px solid var(--border-gray);
         }
@@ -36,7 +36,6 @@
             margin-bottom: 30px;
         }
 
-        /* ปรับแต่งส่วน Logo */
         .logo-img {
             max-width: 250px;
             height: auto;
@@ -137,6 +136,7 @@
             cursor: pointer;
             border: none;
             border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
         .btn-start { background-color: #43a047; color: white; }
         .btn-stop { background-color: #d32f2f; color: white; }
@@ -167,14 +167,15 @@
     <div id="status-display" class="status-bar">
         สถานะ: 🔴 ระบบหยุดทำงาน
         <div id="clock" style="font-size: 1.4em; margin-top:10px; color: var(--main-red);">--:--:--</div>
+        <div id="audio-status" style="font-size: 12px; color: #888; margin-top: 5px;">กำลังโหลดไฟล์เสียง...</div>
     </div>
 
     <div class="global-section">
         <div style="flex-grow: 1;">
-            <strong style="color: var(--main-red);">🎵 1. เลือกไฟล์ Intro:</strong>
-            <input type="file" id="introFile" accept="audio/*" style="margin-left: 10px;">
+            <strong style="color: var(--main-red);">🎵 Intro Music:</strong>
+            <span id="file-name-display" style="margin-left: 10px; font-weight: bold; color: #333;">SkiAdict_Intro_Announce.m4a</span>
         </div>
-        <div>
+        <div style="width: 200px;">
             <label style="font-size: 12px;">ความเร็วเสียง (Speed): <span id="speedVal">1.1</span>x</label>
             <input type="range" id="globalSpeed" min="0.5" max="2.0" step="0.1" value="1.1" oninput="updateSpeedLabel(this.value)">
         </div>
@@ -206,7 +207,23 @@
     let schedulerInterval = null;
     let rowCount = 0;
 
-    // --- Core Functions ---
+    // --- Auto Load Intro File ---
+    function loadIntroFile() {
+        const filePath = 'SkiAdict_Intro_Announce.m4a';
+        fetch(filePath)
+            .then(response => response.arrayBuffer())
+            .then(data => audioContext.decodeAudioData(data))
+            .then(buffer => {
+                introBuffer = buffer;
+                document.getElementById('audio-status').innerText = "✅ ไฟล์เสียง Intro พร้อมใช้งาน";
+                document.getElementById('audio-status').style.color = "#43a047";
+            })
+            .catch(err => {
+                document.getElementById('audio-status').innerText = "❌ ไม่พบไฟล์เสียง SkiAdict_Intro_Announce.m4a";
+                document.getElementById('audio-status').style.color = "#d32f2f";
+            });
+    }
+
     function loadVoices() {
         availableVoices = window.speechSynthesis.getVoices();
         document.querySelectorAll('.voice-select').forEach(select => {
@@ -229,20 +246,8 @@
 
     function updateSpeedLabel(val) {
         document.getElementById('speedVal').innerText = val;
-        saveToLocal();
+        saveSettings();
     }
-
-    // --- Audio Logic ---
-    document.getElementById('introFile').addEventListener('change', function(e) {
-        const file = e.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(ev) {
-                audioContext.decodeAudioData(ev.target.result, buffer => { introBuffer = buffer; });
-            };
-            reader.readAsArrayBuffer(file);
-        }
-    });
 
     function getSpokenTimeText(timeStr, langCode) {
         let [hours, minutes] = timeStr.split(':').map(Number);
@@ -285,8 +290,7 @@
         } else { speak(); }
     }
 
-    // --- Persistence (LocalStorage) ---
-    function saveToLocal() {
+    function saveSettings() {
         const data = [];
         document.querySelectorAll('.row-item').forEach(row => {
             const id = row.getAttribute('data-id');
@@ -299,14 +303,14 @@
                 vol: document.getElementById(`vol-${id}`).value
             });
         });
-        localStorage.setItem('skiAddictSettings', JSON.stringify({
+        localStorage.setItem('skiAddictConfigV2', JSON.stringify({
             speed: document.getElementById('globalSpeed').value,
             rows: data
         }));
     }
 
-    function loadFromLocal() {
-        const saved = localStorage.getItem('skiAddictSettings');
+    function loadSettings() {
+        const saved = localStorage.getItem('skiAddictConfigV2');
         if (saved) {
             const config = JSON.parse(saved);
             document.getElementById('globalSpeed').value = config.speed;
@@ -323,7 +327,6 @@
         } else { addRow(); }
     }
 
-    // --- UI Logic ---
     function addRow() {
         rowCount++;
         const id = rowCount;
@@ -332,14 +335,14 @@
         div.setAttribute('data-id', id);
         div.innerHTML = `
             <div style="font-weight:bold; color:var(--main-red);">${id}</div>
-            <input type="text" id="text-${id}" value="Ski Addict ありがとうございました" oninput="saveToLocal()">
-            <input type="time" id="time-${id}" oninput="saveToLocal()">
-            <div class="chk-container"><input type="checkbox" id="loop-${id}" onchange="saveToLocal()"></div>
-            <div class="chk-container"><input type="checkbox" id="announce-${id}" onchange="saveToLocal()"><div class="small-label">เปิด</div></div>
-            <select id="voice-${id}" class="voice-select" onchange="saveToLocal()"></select>
-            <input type="range" id="vol-${id}" min="0.1" max="1" step="0.1" value="0.8" oninput="saveToLocal()">
+            <input type="text" id="text-${id}" value="Ski Addict ありがとうございました" oninput="saveSettings()">
+            <input type="time" id="time-${id}" oninput="saveSettings()">
+            <div class="chk-container"><input type="checkbox" id="loop-${id}" onchange="saveSettings()"></div>
+            <div class="chk-container"><input type="checkbox" id="announce-${id}" onchange="saveSettings()"><div class="small-label">เปิด</div></div>
+            <select id="voice-${id}" class="voice-select" onchange="saveSettings()"></select>
+            <input type="range" id="vol-${id}" min="0.1" max="1" step="0.1" value="0.8" oninput="saveSettings()">
             <button class="btn-test" onclick="playAudio(${id})">Test</button>
-            <button class="btn-delete" onclick="this.parentElement.remove(); saveToLocal();">×</button>
+            <button class="btn-delete" onclick="this.parentElement.remove(); saveSettings();">×</button>
         `;
         document.getElementById('announcement-list').appendChild(div);
         populateVoiceOptions(div.querySelector('.voice-select'));
@@ -347,16 +350,19 @@
     }
 
     function toggleSystem() {
+        if (audioContext.state === 'suspended') audioContext.resume();
         isSystemRunning = !isSystemRunning;
         const btn = document.getElementById('toggleBtn');
         const status = document.getElementById('status-display');
         if (isSystemRunning) {
             btn.innerText = "⏹ หยุดระบบ"; btn.className = "btn-toggle btn-stop";
             status.classList.add("status-active");
+            status.firstChild.textContent = "สถานะ: 🟢 ระบบกำลังทำงาน (ห้ามปิดแท็บนี้)";
             schedulerInterval = setInterval(checkSchedule, 1000);
         } else {
             btn.innerText = "▶ เริ่มระบบอัตโนมัติ"; btn.className = "btn-toggle btn-start";
             status.classList.remove("status-active");
+            status.firstChild.textContent = "สถานะ: 🔴 ระบบหยุดทำงาน";
             clearInterval(schedulerInterval);
         }
     }
@@ -377,8 +383,11 @@
         }
     }
 
-    loadVoices();
-    setTimeout(loadFromLocal, 1000);
+    window.onload = () => {
+        loadIntroFile();
+        loadVoices();
+        setTimeout(loadSettings, 1200);
+    };
 </script>
 </body>
 </html>

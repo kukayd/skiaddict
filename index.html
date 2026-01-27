@@ -1,3 +1,15 @@
+ขออภัยครับ อาจจะเกิดจากการวางโค้ดในรูปแบบของ Chat แล้ว Copy ไปไม่สมบูรณ์ หรือโครงสร้างบางอย่างขาดหายไป
+
+ผมขอส่งโค้ดให้ใหม่แบบ **Clean Version** (พร้อมไฟล์ตัวอย่าง CSS ที่รวมอยู่ในตัวเดียว) เพื่อให้คุณชัยยุทธ Copy ไปวางใน Notepad แล้ว Save เป็น `.html` ได้เลยครับ
+
+**วิธีใช้งาน:**
+
+1. เปิด Notepad (หรือ Text Editor)
+2. Copy โค้ดด้านล่างทั้งหมดไปวาง
+3. Save As ชื่อไฟล์ `skiaddict_announce.html`
+4. **สำคัญ:** ต้องมีไฟล์ `SkiAddict Logo (4).png` และ `SkiAdict_Intro_Announce.m4a` วางอยู่ในโฟลเดอร์เดียวกันนะครับ (ถ้าไม่มีโลโก้ รูปจะแค่ไม่ขึ้น แต่ระบบยังทำงานได้)
+
+```html
 <!DOCTYPE html>
 <html lang="th">
 <head>
@@ -26,7 +38,7 @@
             padding: 30px;
             border-radius: 15px;
             box-shadow: 0 8px 16px rgba(0,0,0,0.05);
-            max-width: 1450px; /* ขยายความกว้างเพิ่มนิดหน่อย */
+            max-width: 1450px;
             margin: 0 auto;
             border: 1px solid var(--border-gray);
         }
@@ -77,10 +89,9 @@
             gap: 20px;
         }
 
-        /* ปรับ Grid ใหม่ เพิ่มช่อง Loop Interval */
         .grid-layout {
             display: grid;
-            /* # | Text | StartTime | LoopChk | LoopMin | Announce | Voice | Vol | Test | Del */
+            /* Column structure */
             grid-template-columns: 40px 1fr 95px 50px 70px 60px 160px 90px 70px 50px;
             gap: 10px;
             align-items: center;
@@ -99,3 +110,370 @@
         .row-item {
             padding: 15px;
             border-bottom: 1px solid var(--border-gray);
+            background: var(--main-white);
+        }
+        .row-item:nth-child(even) { background-color: var(--light-gray); }
+        
+        input[type="text"], input[type="time"], select, input[type="number"] {
+            padding: 10px;
+            border: 1px solid var(--border-gray);
+            border-radius: 6px;
+            width: 100%;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        input[type="text"] { text-align: left; }
+
+        .btn-test {
+            background-color: var(--main-red);
+            color: white;
+            border: none;
+            padding: 10px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: bold;
+            width: 100%;
+        }
+
+        .btn-add {
+            margin-top: 20px;
+            background-color: white;
+            color: var(--main-red);
+            padding: 12px 25px;
+            border: 2px solid var(--main-red);
+            cursor: pointer;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+
+        .btn-toggle {
+            padding: 12px 35px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .btn-start { background-color: #43a047; color: white; }
+        .btn-stop { background-color: #d32f2f; color: white; }
+
+        input[type="range"] { width: 100%; accent-color: var(--main-red); }
+        .chk-container { display: flex; justify-content: center; align-items: center; flex-direction: column; }
+        input[type="checkbox"] { transform: scale(1.4); cursor: pointer; }
+        .small-label { font-size: 10px; color: #666; margin-top: 5px; }
+
+        .btn-delete {
+            background-color: transparent;
+            color: #999;
+            border: none;
+            cursor: pointer;
+            font-size: 18px;
+        }
+        .btn-delete:hover { color: var(--main-red); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="header-section">
+        <img src="SkiAddict Logo (4).png" alt="Ski Addict Logo" class="logo-img" onerror="this.style.display='none'">
+        <h2>ระบบประกาศอัตโนมัติ V.2 (Fixed Loop)</h2>
+    </div>
+    
+    <div id="status-display" class="status-bar">
+        สถานะ: 🔴 ระบบหยุดทำงาน
+        <div id="clock" style="font-size: 1.4em; margin-top:10px; color: var(--main-red);">--:--:--</div>
+        <div id="audio-status" style="font-size: 12px; color: #888; margin-top: 5px;">กำลังโหลดไฟล์เสียง...</div>
+    </div>
+
+    <div class="global-section">
+        <div style="flex-grow: 1;">
+            <strong style="color: var(--main-red);">🎵 Intro Music:</strong>
+            <span id="file-name-display" style="margin-left: 10px; font-weight: bold; color: #333;">SkiAdict_Intro_Announce.m4a</span>
+        </div>
+        <div style="width: 200px;">
+            <label style="font-size: 12px;">ความเร็วเสียง (Speed): <span id="speedVal">1.1</span>x</label>
+            <input type="range" id="globalSpeed" min="0.5" max="2.0" step="0.1" value="1.1" oninput="updateSpeedLabel(this.value)">
+        </div>
+        <button id="toggleBtn" class="btn-toggle btn-start" onclick="toggleSystem()">▶ เริ่มระบบอัตโนมัติ</button>
+    </div>
+
+    <div class="grid-layout row-header">
+        <div>#</div>
+        <div>ข้อความประกาศ</div>
+        <div>เริ่มเวลา</div>
+        <div>Loop</div>
+        <div>ทุก(นาที)</div>
+        <div style="text-align:center;">ขานเวลา</div>
+        <div>เสียง / ภาษา</div>
+        <div>ความดัง</div>
+        <div>Test</div>
+        <div>ลบ</div>
+    </div>
+    
+    <div id="announcement-list"></div>
+
+    <button class="btn-add" onclick="addRow()">+ เพิ่มแถวประกาศ</button>
+</div>
+
+<script>
+    let introBuffer = null;
+    let audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    let availableVoices = [];
+    let isSystemRunning = false;
+    let schedulerInterval = null;
+    let rowCount = 0;
+
+    // --- Audio File Loader ---
+    function loadIntroFile() {
+        const filePath = 'SkiAdict_Intro_Announce.m4a';
+        fetch(filePath)
+            .then(response => {
+                if (!response.ok) throw new Error("File not found");
+                return response.arrayBuffer();
+            })
+            .then(data => audioContext.decodeAudioData(data))
+            .then(buffer => {
+                introBuffer = buffer;
+                document.getElementById('audio-status').innerText = "✅ ไฟล์เสียง Intro พร้อมใช้งาน";
+                document.getElementById('audio-status').style.color = "#43a047";
+            })
+            .catch(err => {
+                console.warn(err);
+                document.getElementById('audio-status').innerText = "⚠️ ไม่พบไฟล์ Intro (ทำงานเฉพาะเสียงพูด)";
+                document.getElementById('audio-status').style.color = "#ff9800";
+            });
+    }
+
+    // --- Voice Loader ---
+    function loadVoices() {
+        availableVoices = window.speechSynthesis.getVoices();
+        document.querySelectorAll('.voice-select').forEach(select => {
+            const currentVal = select.value;
+            select.innerHTML = '';
+            populateVoiceOptions(select);
+            if(currentVal) select.value = currentVal;
+        });
+    }
+    window.speechSynthesis.onvoiceschanged = loadVoices;
+
+    function populateVoiceOptions(selectElement) {
+        // Prioritize Japanese (ja) then Thai (th), others follow
+        availableVoices.sort((a, b) => {
+            if(a.lang.includes('ja')) return -1;
+            if(b.lang.includes('ja')) return 1;
+            if(a.lang.includes('th')) return -1;
+            if(b.lang.includes('th')) return 1;
+            return 0;
+        }).forEach((voice, index) => {
+            const option = document.createElement('option');
+            option.value = index;
+            option.textContent = `${voice.name.substring(0, 20)} (${voice.lang})`;
+            selectElement.appendChild(option);
+        });
+    }
+
+    function updateSpeedLabel(val) {
+        document.getElementById('speedVal').innerText = val;
+        saveSettings();
+    }
+
+    // --- Spoken Time Logic ---
+    function getSpokenTimeText(timeStr, langCode) {
+        if(!timeStr) return "";
+        let [hours, minutes] = timeStr.split(':').map(Number);
+        
+        // Use current time for more natural speaking
+        const now = new Date();
+        hours = now.getHours();
+        minutes = now.getMinutes();
+
+        if (langCode.includes('ja')) return `ただいま、${hours}時${minutes > 0 ? minutes+'分' : ''}です。`;
+        if (langCode.includes('th')) return `ขณะนี้เวลา ${hours} นาฬิกา ${minutes > 0 ? minutes+'นาที' : ''}`;
+        return `The time is ${hours} ${minutes > 0 ? minutes : "o'clock"}`;
+    }
+
+    // --- Audio Player Logic ---
+    function playAudio(rowId) {
+        if (audioContext.state === 'suspended') audioContext.resume();
+        
+        const text = document.getElementById(`text-${rowId}`).value;
+        const volume = document.getElementById(`vol-${rowId}`).value;
+        const voiceIdx = document.getElementById(`voice-${rowId}`).value;
+        const doAnnounceTime = document.getElementById(`announce-${rowId}`).checked;
+        const speed = document.getElementById('globalSpeed').value;
+
+        window.speechSynthesis.cancel(); // Stop previous
+
+        const speak = () => {
+            const utterQueue = [];
+
+            if (doAnnounceTime) {
+                const now = new Date();
+                const curHM = now.getHours() + ":" + now.getMinutes();
+                const uTime = new SpeechSynthesisUtterance(getSpokenTimeText(curHM, availableVoices[voiceIdx]?.lang || 'ja'));
+                uTime.volume = volume; 
+                uTime.rate = speed;
+                if(availableVoices[voiceIdx]) uTime.voice = availableVoices[voiceIdx];
+                utterQueue.push(uTime);
+            }
+
+            const uText = new SpeechSynthesisUtterance(text);
+            uText.volume = volume; 
+            uText.rate = speed;
+            if(availableVoices[voiceIdx]) uText.voice = availableVoices[voiceIdx];
+            utterQueue.push(uText);
+
+            // Play queue
+            if(utterQueue.length > 0) {
+                window.speechSynthesis.speak(utterQueue[0]);
+                if(utterQueue.length > 1) {
+                    utterQueue[0].onend = () => window.speechSynthesis.speak(utterQueue[1]);
+                }
+            }
+        };
+
+        if (introBuffer) {
+            const source = audioContext.createBufferSource();
+            source.buffer = introBuffer;
+            source.connect(audioContext.destination);
+            source.start(0);
+            source.onended = speak;
+        } else { speak(); }
+    }
+
+    // --- Save/Load System ---
+    function saveSettings() {
+        const data = [];
+        document.querySelectorAll('.row-item').forEach(row => {
+            const id = row.getAttribute('data-id');
+            data.push({
+                text: document.getElementById(`text-${id}`).value,
+                time: document.getElementById(`time-${id}`).value,
+                loop: document.getElementById(`loop-${id}`).checked,
+                interval: document.getElementById(`interval-${id}`).value,
+                announce: document.getElementById(`announce-${id}`).checked,
+                voice: document.getElementById(`voice-${id}`).value,
+                vol: document.getElementById(`vol-${id}`).value
+            });
+        });
+        localStorage.setItem('skiAddictConfigV3', JSON.stringify({
+            speed: document.getElementById('globalSpeed').value,
+            rows: data
+        }));
+    }
+
+    function loadSettings() {
+        const saved = localStorage.getItem('skiAddictConfigV3');
+        if (saved) {
+            const config = JSON.parse(saved);
+            if(config.speed) {
+                document.getElementById('globalSpeed').value = config.speed;
+                document.getElementById('speedVal').innerText = config.speed;
+            }
+            if(config.rows && config.rows.length > 0) {
+                config.rows.forEach(item => {
+                    const id = addRow();
+                    document.getElementById(`text-${id}`).value = item.text;
+                    document.getElementById(`time-${id}`).value = item.time;
+                    document.getElementById(`loop-${id}`).checked = item.loop;
+                    document.getElementById(`interval-${id}`).value = item.interval || 60;
+                    document.getElementById(`announce-${id}`).checked = item.announce;
+                    document.getElementById(`vol-${id}`).value = item.vol;
+                    // Voice selection needs delay to ensure voices loaded
+                    setTimeout(() => { document.getElementById(`voice-${id}`).value = item.voice; }, 500);
+                });
+            } else { addRow(); }
+        } else { addRow(); }
+    }
+
+    function addRow() {
+        rowCount++;
+        const id = rowCount;
+        const div = document.createElement('div');
+        div.className = 'grid-layout row-item';
+        div.setAttribute('data-id', id);
+        div.innerHTML = `
+            <div style="font-weight:bold; color:var(--main-red);">${id}</div>
+            <input type="text" id="text-${id}" value="Ski Addict ขอขอบคุณลูกค้าทุกท่าน" oninput="saveSettings()">
+            <input type="time" id="time-${id}" oninput="saveSettings()">
+            <div class="chk-container"><input type="checkbox" id="loop-${id}" onchange="saveSettings()"></div>
+            <div><input type="number" id="interval-${id}" value="60" min="1" oninput="saveSettings()" title="Minutes"></div>
+            <div class="chk-container"><input type="checkbox" id="announce-${id}" onchange="saveSettings()"><div class="small-label">On</div></div>
+            <select id="voice-${id}" class="voice-select" onchange="saveSettings()"></select>
+            <input type="range" id="vol-${id}" min="0.1" max="1" step="0.1" value="0.8" oninput="saveSettings()">
+            <button class="btn-test" onclick="playAudio(${id})">Test</button>
+            <button class="btn-delete" onclick="this.parentElement.remove(); saveSettings();">×</button>
+        `;
+        document.getElementById('announcement-list').appendChild(div);
+        populateVoiceOptions(div.querySelector('.voice-select'));
+        return id;
+    }
+
+    // --- Scheduler System ---
+    function toggleSystem() {
+        if (audioContext.state === 'suspended') audioContext.resume();
+        isSystemRunning = !isSystemRunning;
+        const btn = document.getElementById('toggleBtn');
+        const status = document.getElementById('status-display');
+        
+        if (isSystemRunning) {
+            btn.innerText = "⏹ หยุดระบบ"; btn.className = "btn-toggle btn-stop";
+            status.classList.add("status-active");
+            status.firstChild.textContent = "สถานะ: 🟢 ระบบกำลังทำงาน";
+            schedulerInterval = setInterval(checkSchedule, 1000);
+        } else {
+            btn.innerText = "▶ เริ่มระบบอัตโนมัติ"; btn.className = "btn-toggle btn-start";
+            status.classList.remove("status-active");
+            status.firstChild.textContent = "สถานะ: 🔴 ระบบหยุดทำงาน";
+            clearInterval(schedulerInterval);
+        }
+    }
+
+    function checkSchedule() {
+        const now = new Date();
+        const currentTotalMinutes = now.getHours() * 60 + now.getMinutes();
+        const curSeconds = now.getSeconds();
+        
+        document.getElementById('clock').innerText = now.toLocaleTimeString('en-GB');
+        
+        // Trigger only at 00 seconds
+        if (curSeconds === 0) {
+            document.querySelectorAll('.row-item').forEach(row => {
+                const id = row.getAttribute('data-id');
+                const timeStr = document.getElementById(`time-${id}`).value;
+                if (!timeStr) return;
+
+                const [startH, startM] = timeStr.split(':').map(Number);
+                const startTotalMinutes = startH * 60 + startM;
+                const isLoop = document.getElementById(`loop-${id}`).checked;
+                const interval = parseInt(document.getElementById(`interval-${id}`).value) || 60;
+
+                if (isLoop) {
+                    let diff = currentTotalMinutes - startTotalMinutes;
+                    if (diff < 0) diff += 1440; // Handle next day crossing
+                    
+                    // Check if aligned with interval
+                    if (diff >= 0 && diff % interval === 0) {
+                        playAudio(id);
+                    }
+                } else {
+                    if (currentTotalMinutes === startTotalMinutes) {
+                        playAudio(id);
+                    }
+                }
+            });
+        }
+    }
+
+    window.onload = () => {
+        loadIntroFile();
+        loadVoices();
+        setTimeout(loadSettings, 1000); // Delay load setting slightly
+    };
+</script>
+</body>
+</html>
+
+```

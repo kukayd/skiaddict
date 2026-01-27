@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ski Addict Auto-Announce (YouTube BGM)</title>
+    <title>Ski Addict Auto-Announce (Final V.4)</title>
     <style>
         :root {
             --main-white: #ffffff;
@@ -67,28 +67,39 @@
         
         /* YouTube Section Style */
         .youtube-section {
-            background-color: #000;
+            background-color: #1a1a1a;
             color: white;
             padding: 20px;
             border-radius: 10px;
             margin-bottom: 20px;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 20px;
-            overflow: hidden;
+            border: 2px solid #333;
         }
         .yt-controls {
             flex-grow: 1;
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 12px;
         }
         .yt-iframe-container {
-            width: 200px;
-            height: 115px;
+            width: 240px;
+            height: 135px;
             border-radius: 8px;
             overflow: hidden;
-            border: 2px solid #333;
+            background: #000;
+            flex-shrink: 0;
+        }
+        
+        .yt-error-msg {
+            color: #ff4444;
+            font-size: 14px;
+            margin-top: 5px;
+            display: none;
+            background: rgba(50,0,0,0.5);
+            padding: 5px;
+            border-radius: 4px;
         }
 
         .global-section {
@@ -193,7 +204,7 @@
 <div class="container">
     <div class="header-section">
         <img src="SkiAddict Logo (4).png" alt="Ski Addict Logo" class="logo-img" onerror="this.style.display='none'">
-        <h2>ระบบประกาศอัตโนมัติ + YouTube BGM</h2>
+        <h2>ระบบประกาศอัตโนมัติ + YouTube (V.4 Final)</h2>
     </div>
     
     <div id="status-display" class="status-bar">
@@ -207,16 +218,24 @@
             <div id="player"></div>
         </div>
         <div class="yt-controls">
-            <div style="font-size: 16px; margin-bottom: 5px;">📺 <strong>YouTube Background Music</strong></div>
-            <div style="display:flex; gap:10px;">
-                <input type="text" id="ytVideoId" placeholder="ใส่ YouTube Video ID (เช่น jfKfPfyJRdk)" value="jfKfPfyJRdk" style="text-align:left; width: 300px;">
-                <button onclick="loadYoutubeVideo()" style="cursor:pointer; padding: 0 15px;">Load Video</button>
+            <div style="font-size: 18px;">📺 <strong>YouTube Background Music</strong></div>
+            
+            <div style="display:flex; gap:10px; flex-wrap: wrap;">
+                <input type="text" id="ytVideoId" placeholder="ใส่ YouTube Video ID (เช่น jfKfPfyJRdk)" value="jfKfPfyJRdk" style="text-align:left; flex-grow:1;">
+                <button onclick="loadYoutubeVideo()" style="cursor:pointer; padding: 10px 20px; font-weight:bold; background:white; color:black; border:none; border-radius:4px;">Load Video</button>
             </div>
-            <div style="margin-top:10px;">
+            
+            <div id="yt-error-display" class="yt-error-msg"></div>
+
+            <div style="margin-top:5px;">
                 <label>ระดับเสียงเพลง (Volume): <span id="ytVolDisplay">30</span>%</label>
                 <input type="range" id="ytVolume" min="0" max="100" value="30" oninput="updateYtVolume(this.value)">
             </div>
-            <div style="font-size: 12px; color: #bbb; margin-top:5px;">*เพลงจะ Fade out อัตโนมัติเมื่อมีประกาศ</div>
+            
+            <div style="font-size: 12px; color: #aaa; line-height: 1.4;">
+                *แนะนำใช้คลิป "Lofi Girl" หรือ "No Copyright Music" เพื่อป้องกันปัญหาจอดำ<br>
+                **ต้องเปิดหน้าจอนี้แช่ไว้ (ห้ามพับจอ) เพื่อให้เพลงเล่นต่อเนื่อง
+            </div>
         </div>
     </div>
 
@@ -263,8 +282,9 @@
     
     // --- YouTube Variables ---
     let player;
-    let ytTargetVolume = 30; // ระดับเสียงปกติที่ตั้งไว้
+    let ytTargetVolume = 30; 
     let fadeInterval = null;
+    let isAnnouncing = false;
 
     // --- YouTube API Functions ---
     function onYouTubeIframeAPIReady() {
@@ -275,24 +295,50 @@
             playerVars: {
                 'playsinline': 1,
                 'controls': 1,
-                'loop': 1,
-                'playlist': document.getElementById('ytVideoId').value // Required for loop
+                'rel': 0, // ไม่แสดงคลิปแนะนำตอนจบ
+                'fs': 0
             },
             events: {
-                'onReady': onPlayerReady
+                'onReady': onPlayerReady,
+                'onError': onPlayerError,
+                'onStateChange': onPlayerStateChange
             }
         });
     }
 
     function onPlayerReady(event) {
         player.setVolume(ytTargetVolume);
-        // Do not auto play here, wait for user to click Start System
+        const errDiv = document.getElementById('yt-error-display');
+        errDiv.style.display = 'none';
+        errDiv.innerText = "";
+    }
+
+    function onPlayerError(event) {
+        const errDiv = document.getElementById('yt-error-display');
+        let msg = "เกิดข้อผิดพลาดในการโหลดวิดีโอ";
+        
+        if(event.data === 100 || event.data === 101 || event.data === 150) {
+            msg = "❌ คลิปนี้เจ้าของปิดกั้นการเล่นบนเว็บอื่น (Embed Disabled) กรุณาเปลี่ยนคลิปใหม่";
+        } else if (event.data === 2) {
+            msg = "❌ ไม่พบ Video ID นี้ (รหัสผิด)";
+        }
+
+        errDiv.innerText = msg;
+        errDiv.style.display = 'block';
+    }
+
+    function onPlayerStateChange(event) {
+        // ถ้าคลิปจบ (Ended = 0) ให้เล่นใหม่ทันที (Manual Loop)
+        if (event.data === YT.PlayerState.ENDED) {
+            player.playVideo(); 
+        }
     }
 
     function loadYoutubeVideo() {
         const vidId = document.getElementById('ytVideoId').value;
         if(player && vidId) {
             player.loadVideoById(vidId);
+            document.getElementById('yt-error-display').style.display = 'none'; // Reset error
         }
     }
 
@@ -305,17 +351,17 @@
     }
 
     // --- Audio Fading Logic ---
-    let isAnnouncing = false;
-
     function fadeOutYouTube(callback) {
-        if (!player || !isSystemRunning) { if(callback) callback(); return; }
+        if (!player || !isSystemRunning || typeof player.setVolume !== 'function') { 
+            if(callback) callback(); return; 
+        }
         
         isAnnouncing = true;
         clearInterval(fadeInterval);
         let currentVol = player.getVolume();
         
         fadeInterval = setInterval(() => {
-            currentVol -= 5; // ลดทีละ 5
+            currentVol -= 5; 
             if (currentVol <= 0) {
                 currentVol = 0;
                 player.setVolume(0);
@@ -324,19 +370,18 @@
             } else {
                 player.setVolume(currentVol);
             }
-        }, 100); // ทุก 0.1 วินาที (ใช้เวลาเฟดประมาณ 0.6-1 วิ)
+        }, 100); 
     }
 
     function fadeInYouTube() {
-        if (!player || !isSystemRunning) return;
+        if (!player || !isSystemRunning || typeof player.setVolume !== 'function') return;
         
         clearInterval(fadeInterval);
         let currentVol = 0;
         
-        // Wait a bit before fading in
         setTimeout(() => {
             fadeInterval = setInterval(() => {
-                currentVol += 2; // เพิ่มทีละ 2 (ขึ้นช้ากว่าลงนิดนึง)
+                currentVol += 2; 
                 if (currentVol >= ytTargetVolume) {
                     currentVol = ytTargetVolume;
                     player.setVolume(ytTargetVolume);
@@ -346,7 +391,7 @@
                     player.setVolume(currentVol);
                 }
             }, 100);
-        }, 1000); // รอ 1 วินาทีหลังพูดจบแล้วค่อยเฟดขึ้น
+        }, 1000); 
     }
 
 
@@ -408,13 +453,11 @@
         return `The time is ${hours} ${minutes > 0 ? minutes : "o'clock"}`;
     }
 
-    // --- Main Play Logic (Updated with Fade) ---
+    // --- Main Play Logic ---
     function playAudio(rowId) {
         if (audioContext.state === 'suspended') audioContext.resume();
         
-        // 1. Start Fading Out YouTube
         fadeOutYouTube(() => {
-            // Callback: Execute this AFTER fade out is complete
             executeAnnouncement(rowId);
         });
     }
@@ -430,7 +473,6 @@
 
         const utterQueue = [];
 
-        // Prepare Time Utterance
         if (doAnnounceTime) {
             const now = new Date();
             const curHM = now.getHours() + ":" + now.getMinutes();
@@ -440,28 +482,25 @@
             utterQueue.push(uTime);
         }
 
-        // Prepare Main Text Utterance
         const uText = new SpeechSynthesisUtterance(text);
         uText.volume = volume; uText.rate = speed;
         if(availableVoices[voiceIdx]) uText.voice = availableVoices[voiceIdx];
         
-        // ** IMPORTANT: Hook Fade In to the LAST utterance **
         uText.onend = () => {
              console.log("Announcement finished, fading in...");
              fadeInYouTube();
         };
+        uText.onerror = () => { fadeInYouTube(); }; // กันเหนียวถ้า error ก็ให้เพลงกลับมา
+
         utterQueue.push(uText);
 
-        // Play Intro Sound -> Then Speak Queue
         const playQueue = () => {
             if(utterQueue.length > 0) {
                 window.speechSynthesis.speak(utterQueue[0]);
                 if(utterQueue.length > 1) {
-                    // If multiple utterances, chain them manually to ensure onend fires correctly for the last one
                     utterQueue[0].onend = () => window.speechSynthesis.speak(utterQueue[1]);
                 }
             } else {
-                // In case of empty text, fade back immediately
                 fadeInYouTube();
             }
         };
@@ -477,7 +516,7 @@
         }
     }
 
-    // --- Save/Load & Scheduler (Same as before) ---
+    // --- Save/Load & Scheduler ---
     function saveSettings() {
         const data = [];
         document.querySelectorAll('.row-item').forEach(row => {
@@ -492,16 +531,16 @@
                 vol: document.getElementById(`vol-${id}`).value
             });
         });
-        localStorage.setItem('skiAddictConfigV4', JSON.stringify({
+        localStorage.setItem('skiAddictConfigV5', JSON.stringify({
             speed: document.getElementById('globalSpeed').value,
-            ytId: document.getElementById('ytVideoId').value, // Save YouTube ID
-            ytVol: document.getElementById('ytVolume').value, // Save YT Volume
+            ytId: document.getElementById('ytVideoId').value, 
+            ytVol: document.getElementById('ytVolume').value,
             rows: data
         }));
     }
 
     function loadSettings() {
-        const saved = localStorage.getItem('skiAddictConfigV4');
+        const saved = localStorage.getItem('skiAddictConfigV5');
         if (saved) {
             const config = JSON.parse(saved);
             if(config.speed) {
@@ -510,7 +549,6 @@
             }
             if(config.ytId) {
                 document.getElementById('ytVideoId').value = config.ytId;
-                // Note: player loading is handled by onYouTubeIframeAPIReady
             }
             if(config.ytVol) {
                 document.getElementById('ytVolume').value = config.ytVol;
@@ -566,8 +604,7 @@
             status.classList.add("status-active");
             status.firstChild.textContent = "สถานะ: 🟢 ระบบทำงาน (YouTube เล่นอัตโนมัติ)";
             
-            // Start YouTube
-            if(player) {
+            if(player && typeof player.playVideo === 'function') {
                 player.playVideo();
                 player.setVolume(ytTargetVolume);
             }
@@ -578,8 +615,7 @@
             status.classList.remove("status-active");
             status.firstChild.textContent = "สถานะ: 🔴 ระบบหยุดทำงาน";
             
-            // Stop YouTube
-            if(player) player.pauseVideo();
+            if(player && typeof player.pauseVideo === 'function') player.pauseVideo();
             
             clearInterval(schedulerInterval);
         }
@@ -592,7 +628,6 @@
         
         document.getElementById('clock').innerText = now.toLocaleTimeString('en-GB');
         
-        // Trigger only at 00 seconds AND only if not currently announcing
         if (curSeconds === 0 && !isAnnouncing) {
             document.querySelectorAll('.row-item').forEach(row => {
                 const id = row.getAttribute('data-id');
